@@ -9,60 +9,100 @@ permissions:
 
 jobs:
 
+  # --------------------------------------------------
+  # 1. Simulated release
+  # --------------------------------------------------
   release:
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Build
         run: |
+          echo "================================"
           echo "Building release..."
+          echo "================================"
           sleep 5
+          echo "Build completed successfully."
 
       - name: Test
         run: |
+          echo "================================"
           echo "Running tests..."
+          echo "================================"
           sleep 5
+          echo "All tests passed."
 
       - name: Deploy
         run: |
+          echo "================================"
           echo "Deploying release..."
+          echo "================================"
           sleep 5
+          echo "Deployment completed successfully."
 
       - name: Release completed
-        run: echo "Release completed successfully"
+        run: |
+          echo "================================"
+          echo "RELEASE COMPLETED SUCCESSFULLY"
+          echo "================================"
 
 
+  # --------------------------------------------------
+  # 2. Trigger release verification
+  # --------------------------------------------------
   trigger-verification:
     needs: release
     runs-on: ubuntu-latest
 
     steps:
 
-      - name: Create verification issue
+      - name: Create release verification issue
         id: issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
         run: |
 
-          ISSUE_URL=$(gh issue create \
-            --title "Verify release ${{ github.run_number }}" \
-            --body "Verify release workflow run ${{ github.run_id }}.")
+          echo "Creating release verification issue..."
 
-          echo "Issue created: $ISSUE_URL"
+          ISSUE_URL=$(gh issue create \
+            --repo "${{ github.repository }}" \
+            --title "Verify release #${{ github.run_number }}" \
+            --body "Please verify release workflow run:
+
+          Repository: ${{ github.repository }}
+          Workflow run: ${{ github.run_id }}
+          Commit: ${{ github.sha }}
+
+          The release workflow completed successfully.
+
+          Please perform release verification.")
+
+          echo "Issue created:"
+          echo "$ISSUE_URL"
 
           ISSUE_NUMBER="${ISSUE_URL##*/}"
+
+          echo "Issue number: $ISSUE_NUMBER"
 
           echo "issue_number=$ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
 
 
-      - name: Assign issue to release verifier agent
+      # --------------------------------------------------
+      # 3. Assign the issue to the custom Copilot agent
+      # --------------------------------------------------
+      - name: Assign release verifier agent
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ steps.issue.outputs.issue_number }}
+
         run: |
+
+          echo "Assigning release verification agent..."
 
           gh api \
             --method POST \
@@ -80,3 +120,5 @@ jobs:
             }
           }
           EOF
+
+          echo "Release verifier agent assignment requested."
